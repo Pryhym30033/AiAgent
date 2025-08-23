@@ -44,6 +44,5 @@ class TestCalculator(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.calculator.evaluate("+ 3")
 
-
 if __name__ == "__main__":
     unittest.main()
