@@ -159,7 +159,22 @@ def main():
         types.Content(role="user", parts=[types.Part(text=userPrompt)]),
     ]
 
-    generateContent(client, messages, verbose)
+    count = 0
+    while True:
+        count+=1
+        if count > 20:
+            print(f"Maximum iterations reached.")
+            sys.exit(1)
+
+        try:
+            result = generateContent(client, messages, verbose)
+            if result:
+                print("final Response:")
+                print(result)
+                break
+        except Exception as e:
+            print(f"Error: An unexpected error occurred: {e}")
+
 
 def generateContent(client, messages, verbose):
     response = client.models.generate_content(
@@ -174,9 +189,19 @@ def generateContent(client, messages, verbose):
         print("Response tokens:", response.usage_metadata.candidates_token_count)
 
 
+    if response.candidates:
+        for candidate in response.candidates:
+            functionCallContent = candidate.content
+            messages.append(functionCallContent)
+
+    if not response.function_calls:
+        return response.text
+
     if response.function_calls:
+        resultParts = []
         for function in response.function_calls:
             result = call_function(function, verbose=verbose)
+            resultParts.extend(result.parts)
             if (result.parts and
                 hasattr(result.parts[0], "function_response") and
                 hasattr(result.parts[0].function_response, "response")):
@@ -184,8 +209,10 @@ def generateContent(client, messages, verbose):
                     print(f"-> {result.parts[0].function_response.response}")
             else:
                 raise Exception("Fatal error: function response missing!")
+        
+        messages.append(types.Content(role="user", parts=resultParts))
 
-
-
+    
+    
 if __name__ == "__main__":
     main()
